@@ -1,0 +1,17 @@
+{
+  "name": "spa-authentication-example",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "angular": "^1.4.8",
+    "angular-ui-router": "^0.2.15",
+    "express": "^4.13.3",
+    "mongodb": "^2.0.49"
+  }
+}
