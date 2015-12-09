@@ -7,7 +7,8 @@ var MongoClient   = require('mongodb').MongoClient,
     LocalStrategy = require('passport-local').Strategy,
     bodyParser    = require('body-parser'),
     cookieParser  = require('cookie-parser'),
-    session       = require('express-session');
+    session       = require('express-session'),
+    sessionstore  = require('sessionstore');
 
 var url = 'mongodb://localhost:27017/spaAuthenticationExample';
 
@@ -84,9 +85,19 @@ MongoClient.connect(url, function (err, db) {
         app.use(bodyParser.urlencoded({extended: false}));
         app.use(bodyParser.json());
 
-        app.use(cookieParser());
+        app.use(cookieParser('7 caballo tiene bonanza'));
 
-        app.use(session({secret: '7 caballo tiene bonanza'}));
+        app.use(session({
+          resave           : false,
+          saveUninitialized: false,
+          secret           : '7 caballo tiene bonanza',
+          store            : sessionstore.createSessionStore({
+            type  : 'mongodb',
+            host  : 'localhost',
+            port  : 27017,
+            dbName: 'sessionDb'
+          })
+        }));
 
         app.use(passport.initialize());
         app.use(passport.session());
@@ -125,6 +136,12 @@ MongoClient.connect(url, function (err, db) {
           })(req, res, next);
         });
 
+        app.post('/logout', function(req, res, next){
+          req.logout();
+          res.status(200);
+          res.type('text/plain');
+          res.send('Usuario deslogueado correctamente');
+        });
 
         /*****************************FIN ROUTING *****************************/
 

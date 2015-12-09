@@ -45,4 +45,20 @@ angular.module('myApp', ['ui.router'])
 
 
   }])
+
+  .controller('IndiceController', ['$http', function ($http) {
+    'use strict';
+
+    var indiceCtrl = this;
+
+    indiceCtrl.logout = function () {
+      $http.post('/logout')
+        .then(function (success) {
+          1 + 1;
+        }, function (err) {
+          1 + 1;
+        });
+    };
+
+  }])
 ;
