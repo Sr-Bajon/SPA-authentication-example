@@ -3,9 +3,18 @@ var async = require('async');
 
 module.exports = function (db) {
 
-  var coleccion        = db.collection('spaPure');
-  var sessionColeccion = db.collection('spaPure-session');
-  var userTypes        = [
+  var login           = loginFunction;
+  var saveCookie      = saveCookieFunction;
+  var saveSessionToBd = saveSessionToBdFunction;
+  var logged          = loggedFunction;
+  var isAuthenticated = isAuthenticatedFunction;
+
+  var coleccion                = db.collection('spaPure');
+  var sessionColeccion         = db.collection('spaPure-session');
+  var cookieName               = 'session';
+  var userNotFoundMessage      = 'User not found';
+  var passwordIncorrectMessage = 'Password incorrect';
+  var userTypes                = [
     {
       type       : 'admin',
       hasNoAccess: []
@@ -20,19 +29,15 @@ module.exports = function (db) {
     }
   ];
 
-  var login           = loginFunction;
-  var saveCookie      = saveCookieFunction;
-  var saveSessionToBd = saveSessionToBdFunction;
-  var logged          = loggedFunction;
 
   function loginFunction(req, res, done) {
     // suponiendo que el user sea identificador unico, que deberia
     coleccion.find({user: req.body.user}, function (err, doc) {
       if (err) return done(503, null);
 
-      if (doc === null) return done('User not found', null);
+      if (doc === null) return done(userNotFoundMessage, null);
 
-      if (doc.pass !== req.body.pass) return done('Password incorrect', null);
+      if (doc.pass !== req.body.pass) return done(passwordIncorrectMessage, null);
 
       return done(null, req, res, doc);
     });
@@ -42,7 +47,7 @@ module.exports = function (db) {
     var cookieStoredData = doc.id;
     var time             = 1000 * 60 * 60 * 24 * 365;
 
-    res.cookie('session', cookieStoredData, {
+    res.cookie(cookieName, cookieStoredData, {
       expires: new Date(Date.now() + time)
     });
 
@@ -67,13 +72,24 @@ module.exports = function (db) {
       if (err) throw err;
 
       req.diyAuth = {
-        authenticated: true
+        isAutenticated: isAuthenticatedFunction(req),
+        authenticated : true
       };
-
     });
-
   }
 
-
+  function isAuthenticatedFunction(req) {
+    // ¿esta la cookie?
+    // es un array, si es una sola cookie es un array tb?,
+    if(req.cookies !== {} && req.cookies.name === cookieName){
+      // buscar el valor de la cookie en la base de datos
+      sessionColeccion.find({_id: req.cookies.value}, function(err, doc){
+        if(err) throw err;
+        
+        // encontrado en la bd
+        // mirar si tiene permiso para la ruta actual
+      });
+    }
+  }
 };
 
