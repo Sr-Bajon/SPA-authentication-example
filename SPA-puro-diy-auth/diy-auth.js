@@ -1,95 +1,73 @@
 'use strict';
+
 var async = require('async');
+var _     = require('lodash');
 
-module.exports = function (db) {
+module.exports       = diyAuth;
+module.exports.start = start;
 
-  var login           = loginFunction;
-  var saveCookie      = saveCookieFunction;
-  var saveSessionToBd = saveSessionToBdFunction;
-  var logged          = loggedFunction;
-  var isAuthenticated = isAuthenticatedFunction;
+var login,
+    saveCookie,
+    saveSessionToBd,
+    isAuthenticated,
+    cookieName,
+    userNotFoundMessage,
+    passwordIncorrectMessage,
+    userTypes;
 
-  var coleccion                = db.collection('spaPure');
-  var sessionColeccion         = db.collection('spaPure-session');
-  var cookieName               = 'session';
-  var userNotFoundMessage      = 'User not found';
-  var passwordIncorrectMessage = 'Password incorrect';
-  var userTypes                = [
-    {
-      type       : 'admin',
-      hasNoAccess: []
-    },
-    {
-      type       : 'user',
-      hasNoAccess: ['/admin']
-    },
-    {
-      type       : 'default',
-      hasNoAccess: ['/admin']
-    }
-  ];
-
-
-  function loginFunction(req, res, done) {
-    // suponiendo que el user sea identificador unico, que deberia
-    coleccion.find({user: req.body.user}, function (err, doc) {
-      if (err) return done(503, null);
-
-      if (doc === null) return done(userNotFoundMessage, null);
-
-      if (doc.pass !== req.body.pass) return done(passwordIncorrectMessage, null);
-
-      return done(null, req, res, doc);
-    });
-  }
-
-  function saveCookieFunction(req, res, doc, done) {
-    var cookieStoredData = doc.id;
-    var time             = 1000 * 60 * 60 * 24 * 365;
-
-    res.cookie(cookieName, cookieStoredData, {
-      expires: new Date(Date.now() + time)
-    });
-
-    return done(null, req, doc, cookieStoredData);
-  }
-
-  function saveSessionToBdFunction(req, doc, cookieStoredData, done) {
-    sessionColeccion.insert({_id: cookieStoredData, type: doc.type},
-      function (err, doc) {
-        if (err) return done(err, null);
-
-        return done(null, req);
-      });
-  }
-
-  function loggedFunction(req, res) {
-    async.waterfall([
-      login(req, res, done),
-      saveCookie(req, res, doc, done),
-      saveSessionToBd(req, doc, cookieStoredData, done)
-    ], function (err, req) {
-      if (err) throw err;
-
-      req.diyAuth = {
-        isAutenticated: isAuthenticatedFunction(req),
-        authenticated : true
-      };
-    });
-  }
-
-  function isAuthenticatedFunction(req) {
-    // ¿esta la cookie?
-    // es un array, si es una sola cookie es un array tb?,
-    if(req.cookies !== {} && req.cookies.name === cookieName){
-      // buscar el valor de la cookie en la base de datos
-      sessionColeccion.find({_id: req.cookies.value}, function(err, doc){
-        if(err) throw err;
-        
-        // encontrado en la bd
-        // mirar si tiene permiso para la ruta actual
-      });
-    }
-  }
+var objectConfiguration = {
+  login                   : function () {
+    throw 'diy-auth says: You must define a login function';
+  },
+  saveCookie              : function () {
+    throw 'diy-auth says: You must define a saveCookie function';
+  },
+  saveSessionToBd         : function () {
+    throw 'diy-auth says: You must define a saveSessionToBD function';
+  },
+  isAuthenticated         : function () {
+    throw 'diy-auth says: You must define a isAuthenticated function';
+  },
+  cookieName              : 'session',
+  userNotFoundMessage     : 'User not found',
+  passwordIncorrectMessage: 'Password incorrect',
+  userTypes               : []
 };
 
+function diyAuth(objectConf) {
+  return function diyAuth(req, res, next) {
+    _.merge(objectConfiguration, objectConf);
+    1+1;
+    return next();
+  };
+}
+
+function start () {
+  return function start(req, res, next){
+    objectConfiguration.isAuthenticated();
+    console.log('hola dola');
+    return next();
+  };
+}
+
+  //objectConfiguration.login(req, res, function (err, req, res, doc) {
+  //  if (err) throw err;
+  //
+  //  console.log(doc);
+  //});
+
+
+function logerFunction(req, res) {
+  async.waterfall([
+    login(req, res, done),
+    saveCookie(req, res, doc, done),
+    saveSessionToBd(req, doc, cookieStoredData, done)
+  ], function (err, req) {
+    if (err) throw err;
+
+    req.diyAuth = {
+      isAutenticated: isAuthenticatedFunction(req),
+      authenticated : true
+    };
+  });
+}

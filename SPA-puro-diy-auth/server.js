@@ -1,10 +1,12 @@
 'use strict';
 
-var MongoClient   = require('mongodb').MongoClient,
-    express       = require('express'),
-    path          = require('path'),
-    bodyParser    = require('body-parser'),
-    cookieParser  = require('cookie-parser');
+var MongoClient  = require('mongodb').MongoClient,
+    express      = require('express'),
+    path         = require('path'),
+    bodyParser   = require('body-parser'),
+    cookieParser = require('cookie-parser'),
+    diyAuthConf  = require('./diy-auth-conf'),
+    diyAuth      = require('./diy-auth');
 
 var url = 'mongodb://localhost:27017/spaAuthenticationExample';
 
@@ -33,50 +35,16 @@ MongoClient.connect(url, function (err, db) {
 
         console.log('Usuarios insertados correctamente');
 
-
-        passport.use(new LocalStrategy(
-          function (username, password, done) {
-            // a esta función se le llamará cuando haya que autenticar un usuario
-
-            coleccion.findOne({user: username}, function (err, user) {
-              console.log(user);
-
-              if (err) {
-                return done(err);
-              }
-
-              if (!user) {
-                return done(null, false, {message: 'Usuario incorrecto.'});
-              }
-
-              if (user.pass !== password) {
-                return done(null, false, {message: 'Password incorrecta.'});
-              }
-
-              return done(null, user);
-            });
-          }
-        ));
-
-        passport.serializeUser(function (user, done) {
-          console.log('serializeUser');
-          console.log(user);
-          done(null, user.id);
-        });
-
-        passport.deserializeUser(function (user, done) {
-          console.log('deserializeUser');
-          console.log(user);
-          coleccion.find(user.id, function (err, user) {
-            done(err, user);
-          });
-        });
-
-
         var app = express();
 
         app.use(express.static(__dirname + '/public'));
         app.use(express.static(__dirname + '/node_modules'));
+
+        var diyAuthConfObj = new diyAuthConf(db);
+        var diyAuthObj = new diyAuth({
+          isAuthenticated: diyAuthConfObj.isAuthenticated
+        });
+        app.use(diyAuthObj.start());
 
         app.use(bodyParser.urlencoded({extended: false}));
         app.use(bodyParser.json());
@@ -95,7 +63,7 @@ MongoClient.connect(url, function (err, db) {
         app.post('/login', function (req, res, next) {
         });
 
-        app.post('/logout', function(req, res, next){
+        app.post('/logout', function (req, res, next) {
           res.status(200);
           res.type('text/plain');
           res.send('Usuario deslogueado correctamente');
