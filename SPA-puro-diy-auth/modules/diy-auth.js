@@ -11,7 +11,6 @@ module.exports = function (objectConf) {
   var objectConfiguration = {
     login                   : require('./default-functions').loginFunction,
     saveCookie              : require('./default-functions').saveCookieFunction,
-    deleteCookie            : require('./default-functions').deleteCookieFunction,
     findDbSession           : require('./default-functions').findDbSessionFunction,
     saveSessionToDb         : require('./default-functions').saveSessionToDbFunction,
     clearSessionDB          : require('./default-functions').clearSessionDbFunction,

@@ -17,10 +17,6 @@ module.exports = {
     throw 'diy-auth says: You must define a saveSessionToDB function';
   },
 
-  deleteCookieFunction: function deleteCookieFunction() {
-    throw 'diy-auth says: You must define a deleteCookie function';
-  },
-
   clearSessionDbFunction: function clearSessionDbFunction() {
     throw 'diy-auth says: You must define a clearSessionDbFunction function';
   }
