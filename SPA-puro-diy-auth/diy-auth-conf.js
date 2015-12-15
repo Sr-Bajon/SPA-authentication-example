@@ -5,8 +5,9 @@ module.exports = function (db) {
 
   var login           = loginFunction;
   var saveCookie      = saveCookieFunction;
-  var saveSessionToBd = saveSessionToBdFunction;
-  var isAuthenticated = isAuthenticatedFunction;
+  var saveSessionToDb = saveSessionToDbFunction;
+  var finDbdSession   = findDbSessionFunction;
+  var deleteCookie    = deleteCookieFunction;
 
   var coleccion                = db.collection('spaPure');
   var sessionColeccion         = db.collection('spaPure-session');
@@ -20,10 +21,6 @@ module.exports = function (db) {
     },
     {
       type       : 'user',
-      hasNoAccess: ['/admin']
-    },
-    {
-      type       : 'default',
       hasNoAccess: ['/admin']
     }
   ];
@@ -47,17 +44,21 @@ module.exports = function (db) {
     });
   }
 
-  function saveCookieFunction(req, res, cookieStoredData, done) {
-    var time = 1000 * 60 * 60 * 24 * 365;
-
+  function saveCookieFunction(req, res, cookieStoredData, expiredCookieTime, done) {
     res.cookie(cookieName, cookieStoredData, {
-      expires: new Date(Date.now() + time)
-    }).send();
+      expires: new Date(Date.now() + expiredCookieTime)
+    });
 
     return done(null, req, res, cookieStoredData);
   }
 
-  function saveSessionToBdFunction(req, res, cookieStoredData, done) {
+  function deleteCookieFunction(req, res, cookieName, done) {
+    res.clearCookie(cookieName);
+
+    done(null, req, res);
+  }
+
+  function saveSessionToDbFunction(req, res, cookieStoredData, done) {
     sessionColeccion.insert({_id: cookieStoredData},
       function (err, doc) {
         if (err) return done(err, null);
@@ -66,27 +67,25 @@ module.exports = function (db) {
       });
   }
 
-  function isAuthenticatedFunction(req, res) {
-    // ¿esta la cookie?
-    // es un array, si es una sola cookie es un array tb?,
-    if (req.cookies && req.cookies !== {} && req.cookies[cookieName]) {
-      // buscar el valor de la cookie en la base de datos
-      sessionColeccion.findOne({_id: req.cookies.value}, function (err, doc) {
-        if (err) throw err;
+  function findDbSessionFunction(req, cookieName, done) {
+    // buscar el valor de la cookie en la base de datos
+    sessionColeccion.findOne({_id: req.cookies[cookieName]}, function (err, doc) {
+      if (err) return done(err, null);
 
-        // encontrado en la bd
-        // mirar si tiene permiso para la ruta actual
-      });
-    }
+      if (doc === null) done(err, null);
+
+      // encontrado en la bd
+      // mirar si tiene permiso para la ruta actual
+      done(null, doc._id.toString());
+    });
   }
 
   return {
     login          : login,
-    isAuthenticated: isAuthenticated,
     saveCookie     : saveCookie,
-    saveSessionToBd: saveSessionToBd
+    saveSessionToDb: saveSessionToDb,
+    finDbdSession  : finDbdSession,
+    userTypes      : userTypes,
+    deleteCookie   : deleteCookie
   };
-
-
 };
-

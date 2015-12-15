@@ -43,11 +43,12 @@ MongoClient.connect(url, function (err, db) {
         app.use(cookieParser());
 
         var diyAuthConfObj = new diyAuthConf(db);
-        var diyAuthObj     = new require('./diy-auth')({
-          isAuthenticated: diyAuthConfObj.isAuthenticated,
+        var diyAuthObj     = new diyAuth({
+          findDbSession  : diyAuthConfObj.finDbdSession,
           login          : diyAuthConfObj.login,
           saveCookie     : diyAuthConfObj.saveCookie,
-          saveSessionToBd: diyAuthConfObj.saveSessionToBd
+          saveSessionToDb: diyAuthConfObj.saveSessionToDb,
+          userTypes      : diyAuthConfObj.userTypes
         });
         app.use(diyAuthObj.start());
 
@@ -64,33 +65,12 @@ MongoClient.connect(url, function (err, db) {
           res.sendFile(path.join(__dirname, '/public/views/' + 'index.html'));
         });
 
-        app.post('/login', function (req, res, next) {
-          res.cookie('miCoookie', 'a tope con la cookie', {
-            maxAge  : 900000,
-            httpOnly: true
-          });
-
-          diyAuthObj.login(req, res, function (err, req, res, doc) {
+        app.post('/login', function (req, res) {
+          diyAuthObj.logger(req, res, function (err, req, res, message) {
             if (err) throw err;
 
-            console.log(doc);
-            diyAuthObj.saveCookie(req, res, doc, function (err, req, doc, cookieStoreData) {
-              if (err) throw err;
-
-              diyAuthObj.saveSessionToBd(req, doc, cookieStoreData, function (err, req) {
-                if (err) throw err;
-
-                //si llegamos aqui estaría logueado
-                req.diyAuth = {
-                  Authenticated  : true,
-                  hasPermission  : true,
-                  isAuthenticated: diyAuthObj.isAuthenticated,
-                  login          : diyAuthObj.login,
-                  saveCookie     : diyAuthConfObj.saveCookie,
-                  saveSessionToBd: diyAuthConfObj.saveSessionToBd
-                };
-              });
-            });
+            res.status('200');
+            res.send(message);
           });
         });
 
