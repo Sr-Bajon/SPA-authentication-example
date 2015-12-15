@@ -31,43 +31,47 @@ module.exports = function (db) {
 
   function loginFunction(req, res, done) {
     // suponiendo que el user sea identificador unico, que deberia
-    coleccion.find({user: req.body.user}, function (err, doc) {
+    coleccion.findOne({user: req.body.username}, function (err, doc) {
       if (err) return done(503, null);
 
       if (doc === null) return done(userNotFoundMessage, null);
 
-      if (doc.pass !== req.body.pass) return done(passwordIncorrectMessage, null);
+      if (doc.pass !== req.body.password) return done(passwordIncorrectMessage, null);
 
-      return done(null, req, res, doc);
+      var cookieStoredData = JSON.stringify({
+        id  : doc._id.toString(),
+        type: doc.type
+      });
+
+      return done(null, req, res, cookieStoredData);
     });
   }
 
-  function saveCookieFunction(req, res, doc, done) {
-    var cookieStoredData = doc.id;
-    var time             = 1000 * 60 * 60 * 24 * 365;
+  function saveCookieFunction(req, res, cookieStoredData, done) {
+    var time = 1000 * 60 * 60 * 24 * 365;
 
     res.cookie(cookieName, cookieStoredData, {
       expires: new Date(Date.now() + time)
-    });
+    }).send();
 
-    return done(null, req, doc, cookieStoredData);
+    return done(null, req, res, cookieStoredData);
   }
 
-  function saveSessionToBdFunction(req, doc, cookieStoredData, done) {
-    sessionColeccion.insert({_id: cookieStoredData, type: doc.type},
+  function saveSessionToBdFunction(req, res, cookieStoredData, done) {
+    sessionColeccion.insert({_id: cookieStoredData},
       function (err, doc) {
         if (err) return done(err, null);
 
-        return done(null, req);
+        return done(null, req, res);
       });
   }
 
-  function isAuthenticatedFunction(req) {
-    // ¿esta la cookie?
+  function isAuthenticatedFunction(req, res) {
+    // Â¿esta la cookie?
     // es un array, si es una sola cookie es un array tb?,
-    if (req.cookies !== {} && req.cookies.name === cookieName) {
+    if (req.cookies && req.cookies !== {} && req.cookies[cookieName]) {
       // buscar el valor de la cookie en la base de datos
-      sessionColeccion.find({_id: req.cookies.value}, function (err, doc) {
+      sessionColeccion.findOne({_id: req.cookies.value}, function (err, doc) {
         if (err) throw err;
 
         // encontrado en la bd
@@ -77,8 +81,10 @@ module.exports = function (db) {
   }
 
   return {
-    login : login,
-    isAuthenticated : isAuthenticated
+    login          : login,
+    isAuthenticated: isAuthenticated,
+    saveCookie     : saveCookie,
+    saveSessionToBd: saveSessionToBd
   };
 
 

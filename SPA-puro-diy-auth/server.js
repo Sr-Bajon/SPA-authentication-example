@@ -40,16 +40,20 @@ MongoClient.connect(url, function (err, db) {
         app.use(express.static(__dirname + '/public'));
         app.use(express.static(__dirname + '/node_modules'));
 
+        app.use(cookieParser());
+
         var diyAuthConfObj = new diyAuthConf(db);
-        var diyAuthObj = new diyAuth({
-          isAuthenticated: diyAuthConfObj.isAuthenticated
+        var diyAuthObj     = new require('./diy-auth')({
+          isAuthenticated: diyAuthConfObj.isAuthenticated,
+          login          : diyAuthConfObj.login,
+          saveCookie     : diyAuthConfObj.saveCookie,
+          saveSessionToBd: diyAuthConfObj.saveSessionToBd
         });
         app.use(diyAuthObj.start());
 
         app.use(bodyParser.urlencoded({extended: false}));
         app.use(bodyParser.json());
 
-        app.use(cookieParser('7 caballo tiene bonanza'));
 
         app.set('view engine', 'html');
 
@@ -61,6 +65,33 @@ MongoClient.connect(url, function (err, db) {
         });
 
         app.post('/login', function (req, res, next) {
+          res.cookie('miCoookie', 'a tope con la cookie', {
+            maxAge  : 900000,
+            httpOnly: true
+          });
+
+          diyAuthObj.login(req, res, function (err, req, res, doc) {
+            if (err) throw err;
+
+            console.log(doc);
+            diyAuthObj.saveCookie(req, res, doc, function (err, req, doc, cookieStoreData) {
+              if (err) throw err;
+
+              diyAuthObj.saveSessionToBd(req, doc, cookieStoreData, function (err, req) {
+                if (err) throw err;
+
+                //si llegamos aqui estaría logueado
+                req.diyAuth = {
+                  Authenticated  : true,
+                  hasPermission  : true,
+                  isAuthenticated: diyAuthObj.isAuthenticated,
+                  login          : diyAuthObj.login,
+                  saveCookie     : diyAuthConfObj.saveCookie,
+                  saveSessionToBd: diyAuthConfObj.saveSessionToBd
+                };
+              });
+            });
+          });
         });
 
         app.post('/logout', function (req, res, next) {
