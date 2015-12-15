@@ -6,7 +6,7 @@ var MongoClient  = require('mongodb').MongoClient,
     bodyParser   = require('body-parser'),
     cookieParser = require('cookie-parser'),
     diyAuthConf  = require('./diy-auth-conf'),
-    diyAuth      = require('./diy-auth');
+    diyAuth      = require('./modules/diy-auth');
 
 var url = 'mongodb://localhost:27017/spaAuthenticationExample';
 
@@ -48,7 +48,8 @@ MongoClient.connect(url, function (err, db) {
           login          : diyAuthConfObj.login,
           saveCookie     : diyAuthConfObj.saveCookie,
           saveSessionToDb: diyAuthConfObj.saveSessionToDb,
-          userTypes      : diyAuthConfObj.userTypes
+          userTypes      : diyAuthConfObj.userTypes,
+          clearSessionDb : diyAuthConfObj.clearSessionDb
         });
         app.use(diyAuthObj.start());
 
@@ -67,17 +68,22 @@ MongoClient.connect(url, function (err, db) {
 
         app.post('/login', function (req, res) {
           diyAuthObj.logger(req, res, function (err, req, res, message) {
-            if (err) throw err;
-
-            res.status('200');
-            res.send(message);
+            if (err) {
+              res.status('403');
+              res.send(err);
+            } else {
+              res.status('200');
+              res.send(message);
+            }
           });
         });
 
         app.post('/logout', function (req, res, next) {
-          res.status(200);
-          res.type('text/plain');
-          res.send('Usuario deslogueado correctamente');
+          req.diyAuth.logout(req, function (err, done) {
+            res.status(200);
+            res.type('text/plain');
+            res.send(done);
+          });
         });
 
         /*****************************FIN ROUTING *****************************/

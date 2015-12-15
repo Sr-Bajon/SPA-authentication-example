@@ -4,10 +4,10 @@ var async = require('async');
 module.exports = function (db) {
 
   var login           = loginFunction;
+  var clearSessionDb  = clearSessionDbFunction;
   var saveCookie      = saveCookieFunction;
   var saveSessionToDb = saveSessionToDbFunction;
   var finDbdSession   = findDbSessionFunction;
-  var deleteCookie    = deleteCookieFunction;
 
   var coleccion                = db.collection('spaPure');
   var sessionColeccion         = db.collection('spaPure-session');
@@ -29,11 +29,11 @@ module.exports = function (db) {
   function loginFunction(req, res, done) {
     // suponiendo que el user sea identificador unico, que deberia
     coleccion.findOne({user: req.body.username}, function (err, doc) {
-      if (err) return done(503, null);
+      if (err) return done(503, req, res, null);
 
-      if (doc === null) return done(userNotFoundMessage, null);
+      if (doc === null) return done(userNotFoundMessage, req, res, null);
 
-      if (doc.pass !== req.body.password) return done(passwordIncorrectMessage, null);
+      if (doc.pass !== req.body.password) return done(passwordIncorrectMessage, req, res, null);
 
       var cookieStoredData = JSON.stringify({
         id  : doc._id.toString(),
@@ -41,6 +41,14 @@ module.exports = function (db) {
       });
 
       return done(null, req, res, cookieStoredData);
+    });
+  }
+
+  function clearSessionDbFunction(id, done) {
+    sessionColeccion.deleteOne({_id: id}, function (err, doc) {
+      if (err) return done(err, null);
+
+      return done(null, true);
     });
   }
 
@@ -52,16 +60,16 @@ module.exports = function (db) {
     return done(null, req, res, cookieStoredData);
   }
 
-  function deleteCookieFunction(req, res, cookieName, done) {
-    res.clearCookie(cookieName);
-
-    done(null, req, res);
-  }
-
   function saveSessionToDbFunction(req, res, cookieStoredData, done) {
     sessionColeccion.insert({_id: cookieStoredData},
       function (err, doc) {
-        if (err) return done(err, null);
+
+        if (err && err.code === 11000) {
+          // this is a duplicated id error code
+          return done(null, req, res);
+        }
+
+        if (err) return done(err, req, res);
 
         return done(null, req, res);
       });
@@ -72,11 +80,11 @@ module.exports = function (db) {
     sessionColeccion.findOne({_id: req.cookies[cookieName]}, function (err, doc) {
       if (err) return done(err, null);
 
-      if (doc === null) done(err, null);
+      if (doc === null) return done('No doc found', null);
 
       // encontrado en la bd
       // mirar si tiene permiso para la ruta actual
-      done(null, doc._id.toString());
+      return done(null, doc._id.toString());
     });
   }
 
@@ -86,6 +94,6 @@ module.exports = function (db) {
     saveSessionToDb: saveSessionToDb,
     finDbdSession  : finDbdSession,
     userTypes      : userTypes,
-    deleteCookie   : deleteCookie
+    clearSessionDb : clearSessionDb
   };
 };
