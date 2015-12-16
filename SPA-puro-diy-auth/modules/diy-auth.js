@@ -7,13 +7,14 @@ module.exports = function (objectConf) {
   var start           = startFunction;
   var logger          = loggerFunction;
   var isAuthenticated = isAuthenticatedFunction;
+  var logout          = logoutFunction;
 
   var objectConfiguration = {
     login                   : require('./default-functions').loginFunction,
     saveCookie              : require('./default-functions').saveCookieFunction,
     findDbSession           : require('./default-functions').findDbSessionFunction,
     saveSessionToDb         : require('./default-functions').saveSessionToDbFunction,
-    clearSessionDB          : require('./default-functions').clearSessionDbFunction,
+    clearSessionDb          : require('./default-functions').clearSessionDbFunction,
     encrypt                 : require('./crypto-functions').encrypt,
     decrypt                 : require('./crypto-functions').decrypt,
     expiredCookieTime       : 1000 * 60 * 60 * 24 * 365,
@@ -42,7 +43,7 @@ module.exports = function (objectConf) {
     req.diyAuth = {
       authenticated  : false,
       hasPermission  : false,
-      isAuthenticated: objectConfiguration.isAuthenticated,
+      isAuthenticated: isAuthenticated,
       login          : objectConfiguration.login,
       saveCookie     : objectConfiguration.saveCookie,
       saveSessionToBd: objectConfiguration.saveSessionToBd,
@@ -80,13 +81,13 @@ module.exports = function (objectConf) {
       });
   }
 
-  function logout(req) {
-    if (req.cookie && req.cookie[objectConfiguration.cookieName]) {
-      var cookieData = req.cookie(objectConfiguration.cookieName);
+  function logoutFunction(req, res, done) {
+    if (req.cookies && req.cookies[objectConfiguration.cookieName]) {
+      var cookieData = req.cookies[objectConfiguration.cookieName];
 
-      req.clearCookie(objectConfiguration.cookieName);
+      res.clearCookie(objectConfiguration.cookieName);
 
-      objectConfiguration.clearSessionDB(cookieData, function (err, done) {
+      objectConfiguration.clearSessionDb(cookieData, function (err) {
         if (err) return done(err, null);
 
         return done(null, objectConfiguration.logoutMessage);
@@ -110,12 +111,15 @@ module.exports = function (objectConf) {
   }
 
   function isAuthenticatedFunction(req, done) {
+    if (!done) done = function () {
+    };
+
     createRequestAuthObject(req);
     if (req.cookies && req.cookies !== {} && req.cookies[objectConfiguration.cookieName]) {
 
       objectConfiguration.findDbSession(req, objectConfiguration.cookieName,
         function (err, cookieData) {
-          if (err) return err;
+          if (err) return done(err, null);
 
           var descryptedCookieData;
           try {
@@ -124,7 +128,7 @@ module.exports = function (objectConf) {
               objectConfiguration.algorithm,
               objectConfiguration.password));
           } catch (err) {
-            return err;
+            return done(err, null);
           }
           // en este punto se ha encontrado la cookie y el documento coincidente en la BD
           // comprobar si tiene permisos para acceder a la pagina.
@@ -132,6 +136,8 @@ module.exports = function (objectConf) {
           req.diyAuth.authenticated = true;
           req.diyAuth.hasPermission = objectConfiguration.userTypes.length > 0 &&
             hasAccess(descryptedCookieData.type, req.originalUrl);
+
+          return done(null, req.diyAuth.hasPermission);
         });
     }
   }

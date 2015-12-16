@@ -78,11 +78,22 @@ MongoClient.connect(url, function (err, db) {
           });
         });
 
-        app.post('/logout', function (req, res, next) {
-          req.diyAuth.logout(req, function (err, done) {
+        app.post('/logout', function (req, res) {
+          req.diyAuth.logout(req, res, function (err, done) {
             res.status(200);
             res.type('text/plain');
             res.send(done);
+          });
+        });
+
+        app.post('/authenticate', function (req, res) {
+          req.originalUrl = req.body.url;
+          req.diyAuth.isAuthenticated(req, function (err, success) {
+            if (err || success === false) {
+              res.status(403).send();
+            } else {
+              res.status(200).send();
+            }
           });
         });
 
