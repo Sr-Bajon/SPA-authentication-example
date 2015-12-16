@@ -66,8 +66,8 @@ module.exports = function (db) {
   }
 
   function saveSessionToDbFunction(cookieStoredData, done) {
-    insert(saveSessionToDb, cookieStoredData, function (err, success) {
-      if(err) return done(err, null);
+    insert(sessionColeccion, cookieStoredData, function (err, success) {
+      if (err) return done(err, null);
 
       return done(null, success);
     });
@@ -88,8 +88,8 @@ module.exports = function (db) {
       });
   }
 
-  function findDbSessionFunction(id, done){
-    findOneSessionDb(sessionColeccion, id, function(err, doc){
+  function findDbSessionFunction(id, done) {
+    findOneSessionDb(sessionColeccion, id, function (err, doc) {
       if (err) return done(err, null);
 
       return done(null, doc._id.toString());

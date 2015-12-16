@@ -20,8 +20,8 @@ module.exports = {
     throw 'diy-auth says: You must define a clearSessionDbFunction function';
   },
 
-  saveCookieFunction: function (request, cookieName, cookieStoredData, expiredCookieTime, done) {
-    request.cookie(cookieName, cookieStoredData, {
+  saveCookieFunction: function (response, cookieName, cookieStoredData, expiredCookieTime, done) {
+    response.cookie(cookieName, cookieStoredData, {
       expires: new Date(Date.now() + expiredCookieTime)
     });
 

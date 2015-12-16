@@ -40,39 +40,43 @@ module.exports = function (objectConf) {
   }
 
   function isAuthenticatedFunction(req, path, done) {
-    if (!done) done = function () {};
+    if (!done) done = function () {
+    };
 
     createRequestAuthObject(req);
 
     if (req.cookies && req.cookies !== {} && req.cookies[objectConfiguration.cookieName]) {
 
-      objectConfiguration.findDbSession(objectConfiguration.cookieName, function (err, cookieData) {
-        if (err) return done(err, null);
+      objectConfiguration.findDbSession(req.cookies[objectConfiguration.cookieName],
+        function (err, cookieData) {
+          if (err) return done(err, null);
 
-        var descryptedCookieData;
-        try {
-          descryptedCookieData = JSON.parse(objectConfiguration.decrypt(
-            cookieData,
-            objectConfiguration.algorithm,
-            objectConfiguration.password));
-        } catch (err) {
-          return done(err, null);
-        }
+          var descryptedCookieData;
+          try {
+            descryptedCookieData = JSON.parse(objectConfiguration.decrypt(
+              cookieData,
+              objectConfiguration.algorithm,
+              objectConfiguration.password));
+          } catch (err) {
+            return done(err, null);
+          }
 
-        // en este punto se ha encontrado la cookie y el documento coincidente en la BD
-        // comprobar si tiene permisos para acceder a la pagina.
+          // en este punto se ha encontrado la cookie y el documento coincidente en la BD
+          // comprobar si tiene permisos para acceder a la pagina.
 
-        req.diyAuth.authenticated = true;
+          req.diyAuth.authenticated = true;
 
-        if (path !== null) {
-          req.diyAuth.hasPermission = objectConfiguration.userTypes.length > 0 &&
-            hasAccess(descryptedCookieData.type, path);
+          if (path !== null) {
+            req.diyAuth.hasPermission = objectConfiguration.userTypes.length > 0 &&
+              hasAccess(descryptedCookieData.type, path);
 
-          return done(null, req.diyAuth.hasPermission);
-        }
+            return done(null, req.diyAuth.hasPermission);
+          }
 
-        return done(null, req.diyAuth.authenticated);
-      });
+          return done(null, req.diyAuth.authenticated);
+        });
+    } else {
+      return done(null, false);
     }
   }
 
@@ -88,7 +92,7 @@ module.exports = function (objectConf) {
     };
   }
 
-  function loggerFunction(req, user, pass, done) {
+  function loggerFunction(req, res, user, pass, done) {
 
     objectConfiguration.login(user, pass, function (err, cookieStoredData) {
       if (err) return done(err, null);
@@ -98,8 +102,8 @@ module.exports = function (objectConf) {
         objectConfiguration.algorithm,
         objectConfiguration.password);
 
-      objectConfiguration.saveCookie(req, objectConfiguration.cookieName, encriptedCookieStoredData,
-        objectConfiguration.expiredCookieTime,
+      objectConfiguration.saveCookie(res, objectConfiguration.cookieName,
+        encriptedCookieStoredData, objectConfiguration.expiredCookieTime,
         function (err) {
           if (err) return done(err, null);
 
