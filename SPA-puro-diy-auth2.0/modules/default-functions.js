@@ -3,24 +3,8 @@
 var crypto = require('crypto');
 
 module.exports = {
-  loginFunction: function loginFunction() {
-    throw 'diy-auth says: You must define a login function';
-  },
-
-
-  findDbSessionFunction: function findDbSessionFunction() {
-    throw 'diy-auth says: You must define a findDbSession function';
-  },
-
-  saveSessionToDbFunction: function saveSessionToDbFunction() {
-    throw 'diy-auth says: You must define a saveSessionToDB function';
-  },
-
-  clearSessionDbFunction: function clearSessionDbFunction() {
-    throw 'diy-auth says: You must define a clearSessionDbFunction function';
-  },
-
-  saveCookieFunction: function (response, cookieName, cookieStoredData, expiredCookieTime, done) {
+  saveCookieFunction: function (response, cookieName, cookieStoredData,
+                                expiredCookieTime, done) {
     response.cookie(cookieName, cookieStoredData, {
       expires: new Date(Date.now() + expiredCookieTime)
     });

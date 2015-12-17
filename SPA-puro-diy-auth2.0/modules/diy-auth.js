@@ -1,6 +1,7 @@
 'use strict';
 
-var _ = require('lodash');
+var _      = require('lodash');
+var crypto = require('crypto');
 
 module.exports = function (objectConf) {
 
@@ -10,11 +11,11 @@ module.exports = function (objectConf) {
   var logout          = logoutFunction;
 
   var objectConfiguration = {
-    login                   : require('./default-functions').loginFunction,
+    login                   : require('./to-do-functions').loginFunction,
+    findDbSession           : require('./to-do-functions').findDbSessionFunction,
+    saveSessionToDb         : require('./to-do-functions').saveSessionToDbFunction,
+    clearSessionDb          : require('./to-do-functions').clearSessionDbFunction,
     saveCookie              : require('./default-functions').saveCookieFunction,
-    findDbSession           : require('./default-functions').findDbSessionFunction,
-    saveSessionToDb         : require('./default-functions').saveSessionToDbFunction,
-    clearSessionDb          : require('./default-functions').clearSessionDbFunction,
     encrypt                 : require('./default-functions').encrypt,
     decrypt                 : require('./default-functions').decrypt,
     expiredCookieTime       : 1000 * 60 * 60 * 24 * 365,
@@ -39,13 +40,13 @@ module.exports = function (objectConf) {
     };
   }
 
-  function isAuthenticatedFunction(req, path, done) {
+  function isAuthenticatedFunction(req, route, done) {
     if (!done) done = function () {
     };
 
     createRequestAuthObject(req);
 
-    if (req.cookies && req.cookies !== {} && req.cookies[objectConfiguration.cookieName]) {
+    if (req.cookies && req.cookies[objectConfiguration.cookieName]) {
 
       objectConfiguration.findDbSession(req.cookies[objectConfiguration.cookieName],
         function (err, cookieData) {
@@ -54,26 +55,26 @@ module.exports = function (objectConf) {
           var descryptedCookieData;
           try {
             descryptedCookieData = JSON.parse(objectConfiguration.decrypt(
-              cookieData,
+              req.cookies[objectConfiguration.cookieName],
               objectConfiguration.algorithm,
-              objectConfiguration.password));
+              objectConfiguration.password,
+              iv));
           } catch (err) {
             return done(err, null);
           }
 
-          // en este punto se ha encontrado la cookie y el documento coincidente en la BD
-          // comprobar si tiene permisos para acceder a la pagina.
+          var authenticated = true;
+          var hasPermission = true;
 
-          req.diyAuth.authenticated = true;
-
-          if (path !== null) {
-            req.diyAuth.hasPermission = objectConfiguration.userTypes.length > 0 &&
-              hasAccess(descryptedCookieData.type, path);
-
-            return done(null, req.diyAuth.hasPermission);
+          if (route !== null) {
+            hasPermission = objectConfiguration.userTypes.length > 0 &&
+              hasAccess(descryptedCookieData.type, route);
           }
 
-          return done(null, req.diyAuth.authenticated);
+          req.diyAuth.authenticated = authenticated;
+          req.diyAuth.hasPermission = hasPermission;
+
+          return done(null, authenticated && hasPermission);
         });
     } else {
       return done(null, false);
@@ -100,7 +101,8 @@ module.exports = function (objectConf) {
       var encriptedCookieStoredData = objectConfiguration.encrypt(
         cookieStoredData,
         objectConfiguration.algorithm,
-        objectConfiguration.password);
+        objectConfiguration.password,
+        iv);
 
       objectConfiguration.saveCookie(res, objectConfiguration.cookieName,
         encriptedCookieStoredData, objectConfiguration.expiredCookieTime,
@@ -135,13 +137,13 @@ module.exports = function (objectConf) {
     }
   }
 
-  function hasAccess(type, path) {
+  function hasAccess(type, route) {
     var authorized = true;
 
     objectConfiguration.userTypes.forEach(function (item) {
       if (item.type === type) {
         item.hasNoAccess.forEach(function (noAccessPath) {
-          if (noAccessPath === path) {
+          if (noAccessPath === route) {
             authorized = false;
           }
         });
