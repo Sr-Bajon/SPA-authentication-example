@@ -35,49 +35,96 @@ module.exports = function (objectConf) {
 
   function startFunction() {
     return function start(req, res, next) {
-      isAuthenticated(req, req.originalUrl);
+      isAuthenticatedMiddelware(req, res, next);
       return next();
     };
   }
 
-  function isAuthenticatedFunction(req, route, done) {
-    if (!done) done = function () {
-    };
+  function requireAuth(route) {
+    var result;
+    objectConfiguration.noAuth.forEach(function (item) {
+      result = item.match(route);
+      if (result !== null && result[1] === 'route') {
+        return true;
+      }
+    });
+    return false;
+  }
 
+  function isAuthenticatedMiddelware(req, res, next) {
     createRequestAuthObject(req);
 
-    if (req.cookies && req.cookies[objectConfiguration.cookieName]) {
+    if (!requireAuth(req.originalUrl)) {
+      req.diyAuth.authenticated = false;
+      req.diyAuth.hasPermission = false;
 
-      objectConfiguration.findDbSession(req.cookies[objectConfiguration.cookieName],
-        function (err, cookieData) {
-          if (err) return done(err, null);
+      if (req.cookies && req.cookies[objectConfiguration.cookieName]) {
 
-          var descryptedCookieData;
-          try {
-            descryptedCookieData = JSON.parse(objectConfiguration.decrypt(
-              req.cookies[objectConfiguration.cookieName],
-              objectConfiguration.algorithm,
-              objectConfiguration.password,
-              iv));
-          } catch (err) {
-            return done(err, null);
-          }
+        objectConfiguration.findDbSession(req.cookies[objectConfiguration.cookieName],
+          function (err) {
+            if (err) return next(err);
 
-          var authenticated = true;
-          var hasPermission = true;
+            var descryptedCookieData;
+            try {
+              descryptedCookieData = JSON.parse(objectConfiguration.decrypt(
+                req.cookies[objectConfiguration.cookieName],
+                objectConfiguration.algorithm,
+                objectConfiguration.password));
+            } catch (err) {
+              return next(err);
+            }
 
-          if (route !== null) {
-            hasPermission = objectConfiguration.userTypes.length > 0 &&
-              hasAccess(descryptedCookieData.type, route);
-          }
+            req.diyAuth.authenticated = true;
+            req.diyAuth.hasPermission = !(objectConfiguration.userTypes.length > 0 && !hasAccess(descryptedCookieData.type, req.originalUrl));
 
-          req.diyAuth.authenticated = authenticated;
-          req.diyAuth.hasPermission = hasPermission;
+          });
+      }
 
-          return done(null, authenticated && hasPermission);
-        });
+      if (!(req.diyAuth.authenticated && req.diyAuth.hasPermission)) {
+        res.status(403);
+        res.send();
+      }
     } else {
-      return done(null, false);
+      req.diyAuth.authenticated = true;
+      req.diyAuth.hasPermission = true;
+    }
+  }
+
+  function isAuthenticatedFunction(req, route, done) {
+    createRequestAuthObject(req);
+
+    if (!requireAuth(req.originalUrl)) {
+      req.diyAuth.authenticated = false;
+      req.diyAuth.hasPermission = false;
+
+      if (req.cookies && req.cookies[objectConfiguration.cookieName]) {
+
+        objectConfiguration.findDbSession(req.cookies[objectConfiguration.cookieName],
+          function (err) {
+            if (err) return done(err, null);
+
+            var descryptedCookieData;
+            try {
+              descryptedCookieData = JSON.parse(objectConfiguration.decrypt(
+                req.cookies[objectConfiguration.cookieName],
+                objectConfiguration.algorithm,
+                objectConfiguration.password));
+            } catch (err) {
+              return done(err, null);
+            }
+
+            req.diyAuth.authenticated = true;
+            req.diyAuth.hasPermission = !(objectConfiguration.userTypes.length > 0 && !hasAccess(descryptedCookieData.type, route));
+
+            return done(null, req.diyAuth.authenticated && req.diyAuth.hasPermission);
+          });
+      } else {
+        return done(null, false);
+      }
+    } else {
+      req.diyAuth.authenticated = true;
+      req.diyAuth.hasPermission = true;
+      return done(null, req.diyAuth.authenticated && req.diyAuth.hasPermission);
     }
   }
 
@@ -101,8 +148,7 @@ module.exports = function (objectConf) {
       var encriptedCookieStoredData = objectConfiguration.encrypt(
         cookieStoredData,
         objectConfiguration.algorithm,
-        objectConfiguration.password,
-        iv);
+        objectConfiguration.password);
 
       objectConfiguration.saveCookie(res, objectConfiguration.cookieName,
         encriptedCookieStoredData, objectConfiguration.expiredCookieTime,
