@@ -23,12 +23,12 @@ MongoClient.connect(url, function (err, db) {
         {
           user: 'Manolo',
           pass: '1234',
-          type: 'user'
+          role: 'user'
         },
         {
           user: 'Ismael',
           pass: '1234',
-          type: 'admin'
+          role: 'admin'
         }],
       function (err, success) {
         if (err) throw err;
@@ -40,7 +40,10 @@ MongoClient.connect(url, function (err, db) {
         app.use(express.static(__dirname + '/public'));
         app.use(express.static(__dirname + '/node_modules'));
 
+
         app.use(cookieParser());
+        app.use(bodyParser.urlencoded({extended: false}));
+        app.use(bodyParser.json());
 
         var diyAuthConfObj = new diyAuthConf(db);
         var diyAuthObj     = new diyAuth({
@@ -48,12 +51,10 @@ MongoClient.connect(url, function (err, db) {
           login          : diyAuthConfObj.login,
           saveSessionToDb: diyAuthConfObj.saveSessionToDb,
           userTypes      : diyAuthConfObj.userTypes,
+          noAuth         : diyAuthConfObj.noAuth,
           clearSessionDb : diyAuthConfObj.clearSessionDb
         });
         app.use(diyAuthObj.start());
-
-        app.use(bodyParser.urlencoded({extended: false}));
-        app.use(bodyParser.json());
 
 
         app.set('view engine', 'html');
@@ -95,6 +96,15 @@ MongoClient.connect(url, function (err, db) {
               res.status(200).send();
             }
           });
+        });
+
+        app.post('/adminData', function (req, res) {
+
+          var adminData = 'Confidential admin data';
+
+          res.status(200);
+          res.type('text/plain');
+          res.send(adminData);
         });
 
         /*****************************FIN ROUTING *****************************/

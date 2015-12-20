@@ -12,17 +12,6 @@ angular.module('myApp', ['ui.router'])
         $delegate.toParams = params;
       });
 
-      // decora $state para que la opcion reload:true esté por defecto y recargue el resolve en cada
-      // peticion
-      // http://stackoverflow.com/questions/22730868/ui-routers-resolve-functions-are-only-called-once#
-/*      var originalTransitionTo = $delegate.transitionTo;
-      $delegate.transitionTo   = function (to, toParams, options) {
-        return originalTransitionTo(to, toParams, angular.extend({
-          reload: true,
-          notify: true
-        }, options));
-      };*/
-
       return $delegate;
     });
   })
@@ -67,8 +56,6 @@ angular.module('myApp', ['ui.router'])
     $rootScope.$on('$stateChangeError',
       function (event, toState, toParams, fromState, fromParams, error) {
         event.preventDefault();
-        //$state.transitionTo('login');
-        //$state.go('login', {}, {reload: true, notify: true});
         $state.go('login');
       });
   }])
@@ -105,6 +92,24 @@ angular.module('myApp', ['ui.router'])
           indiceCtrl.loggedOut = false;
         });
     };
+
+  }])
+
+  .controller('AdminController', ['$http', function ($http) {
+    'use strict';
+
+    var adminCtrl = this;
+
+    function showAdminData() {
+      $http.post('/adminData')
+        .then(function (success) {
+          adminCtrl.adminData = success.data;
+        }, function (err) {
+          adminCtrl.adminData = 'You don\'t have access to this site';
+        });
+    }
+
+    showAdminData();
 
   }])
 ;

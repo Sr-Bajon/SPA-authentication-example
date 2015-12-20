@@ -83,24 +83,6 @@ module.exports = function (objectConf) {
     return retorno;
   }
 
-
-  //function requireAuth(route) {
-  //  var result;
-  //  var requiredAuth = true;
-  //
-  //  if (objectConfiguration.noAuth.length !== 0) {
-  //    objectConfiguration.noAuth.forEach(function (item) {
-  //      result = item.match(route);
-  //      if (result !== null && result[0] === route) {
-  //        requiredAuth = false;
-  //        return false;
-  //      }
-  //    });
-  //  }
-  //
-  //  return requiredAuth;
-  //}
-
   function isAuthenticatedMiddelware(req, res, next) {
     createRequestAuthObject(req);
 
@@ -125,9 +107,8 @@ module.exports = function (objectConf) {
             }
 
             req.diyAuth.authenticated = true;
-            req.diyAuth.hasPermission = !(objectConfiguration.userTypes.length > 0 &&
-              !hasAccess(descryptedCookieData[objectConfiguration.cookieRoleKeyName],
-                route));
+            req.diyAuth.hasPermission = !(objectConfiguration.userTypes.length > 0 && !hasAccess(descryptedCookieData[objectConfiguration.cookieRoleKeyName],
+              route));
 
             if (!(req.diyAuth.authenticated && req.diyAuth.hasPermission)) {
               res.status(403);
@@ -148,48 +129,6 @@ module.exports = function (objectConf) {
       return next();
     }
   }
-
-
- /* function isAuthenticatedMiddelwareOld(req, res, next) {
-    createRequestAuthObject(req);
-
-    if (!requireAuth(req.originalUrl)) {
-
-      req.diyAuth.authenticated = false;
-      req.diyAuth.hasPermission = false;
-
-      if (req.cookies && req.cookies[objectConfiguration.cookieName]) {
-
-        objectConfiguration.findDbSession(req.cookies[objectConfiguration.cookieName],
-          function (err) {
-            if (err) return next(err);
-
-            var descryptedCookieData;
-            try {
-              descryptedCookieData = JSON.parse(objectConfiguration.decrypt(
-                req.cookies[objectConfiguration.cookieName],
-                objectConfiguration.algorithm,
-                objectConfiguration.password));
-            } catch (err) {
-              return next(err);
-            }
-
-            req.diyAuth.authenticated = true;
-            req.diyAuth.hasPermission = !(objectConfiguration.userTypes.length > 0 && !hasAccess(descryptedCookieData[objectConfiguration.cookieRoleKeyName],
-              req.originalUrl));
-
-          });
-      }
-
-      if (!(req.diyAuth.authenticated && req.diyAuth.hasPermission)) {
-        res.status(403);
-        res.send();
-      }
-    } else {
-      req.diyAuth.authenticated = true;
-      req.diyAuth.hasPermission = true;
-    }
-  }*/
 
   function isAuthenticatedFunction(req, route, done) {
     createRequestAuthObject(req);
@@ -213,9 +152,8 @@ module.exports = function (objectConf) {
             }
 
             req.diyAuth.authenticated = true;
-            req.diyAuth.hasPermission = !(objectConfiguration.userTypes.length > 0 &&
-              !hasAccess(descryptedCookieData[objectConfiguration.cookieRoleKeyName],
-                route));
+            req.diyAuth.hasPermission = !(objectConfiguration.userTypes.length > 0 && !hasAccess(descryptedCookieData[objectConfiguration.cookieRoleKeyName],
+              route));
 
             return done(null, req.diyAuth.authenticated && req.diyAuth.hasPermission);
           });

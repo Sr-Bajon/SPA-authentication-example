@@ -1,7 +1,6 @@
 'use strict';
 
-var _      = require('lodash');
-var crypto = require('crypto');
+var _ = require('lodash');
 
 module.exports = function (objectConf) {
 
@@ -24,6 +23,7 @@ module.exports = function (objectConf) {
     password                : 'battle church pink better',
     algorithm               : 'aes-256-ctr',
     cookieName              : 'session',
+    cookieRoleKeyName       : 'role',
     userNotFoundMessage     : 'User not found',
     passwordIncorrectMessage: 'Password incorrect',
     userLoggedMessage       : 'User logged correctly',
@@ -36,27 +36,77 @@ module.exports = function (objectConf) {
   function startFunction() {
     return function start(req, res, next) {
       isAuthenticatedMiddelware(req, res, next);
-      return next();
     };
   }
 
-  function requireAuth(route) {
-    var result;
-    objectConfiguration.noAuth.forEach(function (item) {
-      result = item.match(route);
-      if (result !== null && result[1] === 'route') {
-        return true;
-      }
-    });
-    return false;
+  function requireAuth(route, method) {
+    method           = method || null;
+    var requiredAuth = true;
+
+    if (objectConfiguration.noAuth.length !== 0) {
+      objectConfiguration.noAuth.forEach(function (item) {
+        // es un string o un objeto?
+        if (Object.prototype.toString.call(item) === '[object String]') {
+          // es un string
+          requiredAuth = compararCadenas(item, route);
+        } else {
+          // es un objeto
+          if (compararCadenas(item.path, route)) {
+            // la ruta coincide, ahora miramos si coincide el metodo
+            if (method && item.method) {
+              // si method es distinto de null y existe la clave method en el objeto
+              item.method.forEach(function (subItem) {
+                if (compararCadenas(subItem, method)) {
+                  requiredAuth = false;
+                }
+              });
+            } else {
+              // si no existe el metodo, con que hayamos validado la ruta nos vale
+              requiredAuth = false;
+            }
+          }
+        }
+      });
+    }
+
+    return requiredAuth;
   }
+
+  function compararCadenas(ruta1, ruta2) {
+    ruta1 = ruta1.toLowerCase();
+    ruta2 = ruta2.toLowerCase();
+    var result  = ruta1.match(ruta2);
+    var retorno = false;
+    if (result !== null && result[0] === ruta2) {
+      retorno = true;
+    }
+    return retorno;
+  }
+
+
+  //function requireAuth(route) {
+  //  var result;
+  //  var requiredAuth = true;
+  //
+  //  if (objectConfiguration.noAuth.length !== 0) {
+  //    objectConfiguration.noAuth.forEach(function (item) {
+  //      result = item.match(route);
+  //      if (result !== null && result[0] === route) {
+  //        requiredAuth = false;
+  //        return false;
+  //      }
+  //    });
+  //  }
+  //
+  //  return requiredAuth;
+  //}
 
   function isAuthenticatedMiddelware(req, res, next) {
     createRequestAuthObject(req);
 
-    if (!requireAuth(req.originalUrl)) {
-      req.diyAuth.authenticated = false;
-      req.diyAuth.hasPermission = false;
+    var route = req.body.url || req.originalUrl;
+
+    if (requireAuth(route)) {
 
       if (req.cookies && req.cookies[objectConfiguration.cookieName]) {
 
@@ -75,27 +125,75 @@ module.exports = function (objectConf) {
             }
 
             req.diyAuth.authenticated = true;
-            req.diyAuth.hasPermission = !(objectConfiguration.userTypes.length > 0 && !hasAccess(descryptedCookieData.type, req.originalUrl));
+            req.diyAuth.hasPermission = !(objectConfiguration.userTypes.length > 0 && !hasAccess(descryptedCookieData[objectConfiguration.cookieRoleKeyName],
+              route));
 
+            if (!(req.diyAuth.authenticated && req.diyAuth.hasPermission)) {
+              res.status(403);
+              res.send();
+            }
+
+            return next();
           });
-      }
-
-      if (!(req.diyAuth.authenticated && req.diyAuth.hasPermission)) {
+      } else {
         res.status(403);
         res.send();
       }
+
+
     } else {
       req.diyAuth.authenticated = true;
       req.diyAuth.hasPermission = true;
+      return next();
     }
   }
+
+
+  /* function isAuthenticatedMiddelwareOld(req, res, next) {
+   createRequestAuthObject(req);
+
+   if (!requireAuth(req.originalUrl)) {
+
+   req.diyAuth.authenticated = false;
+   req.diyAuth.hasPermission = false;
+
+   if (req.cookies && req.cookies[objectConfiguration.cookieName]) {
+
+   objectConfiguration.findDbSession(req.cookies[objectConfiguration.cookieName],
+   function (err) {
+   if (err) return next(err);
+
+   var descryptedCookieData;
+   try {
+   descryptedCookieData = JSON.parse(objectConfiguration.decrypt(
+   req.cookies[objectConfiguration.cookieName],
+   objectConfiguration.algorithm,
+   objectConfiguration.password));
+   } catch (err) {
+   return next(err);
+   }
+
+   req.diyAuth.authenticated = true;
+   req.diyAuth.hasPermission = !(objectConfiguration.userTypes.length > 0 && !hasAccess(descryptedCookieData[objectConfiguration.cookieRoleKeyName],
+   req.originalUrl));
+
+   });
+   }
+
+   if (!(req.diyAuth.authenticated && req.diyAuth.hasPermission)) {
+   res.status(403);
+   res.send();
+   }
+   } else {
+   req.diyAuth.authenticated = true;
+   req.diyAuth.hasPermission = true;
+   }
+   }*/
 
   function isAuthenticatedFunction(req, route, done) {
     createRequestAuthObject(req);
 
-    if (!requireAuth(req.originalUrl)) {
-      req.diyAuth.authenticated = false;
-      req.diyAuth.hasPermission = false;
+    if (!requireAuth(req.body.url)) {
 
       if (req.cookies && req.cookies[objectConfiguration.cookieName]) {
 
@@ -114,7 +212,8 @@ module.exports = function (objectConf) {
             }
 
             req.diyAuth.authenticated = true;
-            req.diyAuth.hasPermission = !(objectConfiguration.userTypes.length > 0 && !hasAccess(descryptedCookieData.type, route));
+            req.diyAuth.hasPermission = !(objectConfiguration.userTypes.length > 0 && !hasAccess(descryptedCookieData[objectConfiguration.cookieRoleKeyName],
+              route));
 
             return done(null, req.diyAuth.authenticated && req.diyAuth.hasPermission);
           });
@@ -124,7 +223,7 @@ module.exports = function (objectConf) {
     } else {
       req.diyAuth.authenticated = true;
       req.diyAuth.hasPermission = true;
-      return done(null, req.diyAuth.authenticated && req.diyAuth.hasPermission);
+      return done(null, true);
     }
   }
 

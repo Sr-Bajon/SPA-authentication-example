@@ -6,15 +6,15 @@ module.exports = {
     throw 'diy-auth says: You must define a login function';
   },
 
-  findDbSessionFunction: function findDbSessionFunction(done) {
+  findDbSessionFunction: function findDbSessionFunction(cookie, done) {
     done(null);
   },
 
-  saveSessionToDbFunction: function saveSessionToDbFunction(done) {
+  saveSessionToDbFunction: function saveSessionToDbFunction(encriptedCookieStoredData, done) {
     done(null);
   },
 
-  clearSessionDbFunction: function clearSessionDbFunction(done) {
+  clearSessionDbFunction: function clearSessionDbFunction(cookieData, done) {
     done(null);
   }
 };

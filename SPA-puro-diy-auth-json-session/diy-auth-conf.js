@@ -21,19 +21,32 @@ module.exports = function (db) {
       hasNoAccess: ['/admin']
     }
   ];
+  var noAuth                   = [
+    {
+      path  : '/',
+      method: ['GET', 'POST']
+    },
+    {
+      path  : '/favicon.ico',
+      method: []
+    },
+    {
+      path: '/login'
+    },
+    '/authenticate'];
 
   function loginFunction(user, pass, done) {
     findUser(userColeccion, user, pass, function (err, doc) {
       if (err) done(err, null);
 
-      done(null, createCookieData(doc._id.toString(), doc.type));
+      done(null, createCookieData(doc._id.toString(), doc.role));
     });
   }
 
-  function createCookieData(id, type) {
+  function createCookieData(id, role) {
     return JSON.stringify({
       id  : id,
-      type: type
+      role: role
     });
   }
 
@@ -111,7 +124,8 @@ module.exports = function (db) {
     login          : login,
     saveSessionToDb: saveSessionToDb,
     finDbdSession  : finDbdSession,
+    clearSessionDb : clearSessionDb,
     userTypes      : userTypes,
-    clearSessionDb : clearSessionDb
+    noAuth         : noAuth
   };
 };
