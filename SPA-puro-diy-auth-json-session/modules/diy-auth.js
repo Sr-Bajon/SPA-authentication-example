@@ -1,6 +1,7 @@
 'use strict';
 
 var _ = require('lodash');
+var Promise = require('bluebird');
 
 module.exports = function (objectConf) {
 
@@ -8,6 +9,7 @@ module.exports = function (objectConf) {
   var logger          = loggerFunction;
   var isAuthenticated = isAuthenticatedFunction;
   var logout          = logoutFunction;
+  var getCookieData   = getCookieDataFunction;
 
   var objectConfiguration = {
     login                   : require('./to-do-functions').loginFunction,
@@ -33,6 +35,19 @@ module.exports = function (objectConf) {
 
   _.merge(objectConfiguration, objectConf);
 
+  function createRequestAuthObject(req) {
+    req.diyAuth = {
+      authenticated  : false,
+      hasPermission  : false,
+      isAuthenticated: isAuthenticated,
+      login          : objectConfiguration.login,
+      saveCookie     : objectConfiguration.saveCookie,
+      saveSessionToBd: objectConfiguration.saveSessionToBd,
+      logout         : logout,
+      getCookieData  : getCookieData
+    };
+  }
+
   function startFunction() {
     return function start(req, res, next) {
       isAuthenticatedMiddelware(req, res, next);
@@ -48,7 +63,9 @@ module.exports = function (objectConf) {
         // es un string o un objeto?
         if (Object.prototype.toString.call(item) === '[object String]') {
           // es un string
-          requiredAuth = compararCadenas(item, route);
+          if (compararCadenas(item, route)) {
+            requiredAuth = false;
+          }
         } else {
           // es un objeto
           if (compararCadenas(item.path, route)) {
@@ -73,33 +90,15 @@ module.exports = function (objectConf) {
   }
 
   function compararCadenas(ruta1, ruta2) {
-    ruta1 = ruta1.toLowerCase();
-    ruta2 = ruta2.toLowerCase();
+    ruta1       = ruta1.toLowerCase();
+    ruta2       = ruta2.toLowerCase();
     var result  = ruta1.match(ruta2);
     var retorno = false;
-    if (result !== null && result[0] === ruta2) {
+    if (result !== null && result[0] === ruta1) {
       retorno = true;
     }
     return retorno;
   }
-
-
-  //function requireAuth(route) {
-  //  var result;
-  //  var requiredAuth = true;
-  //
-  //  if (objectConfiguration.noAuth.length !== 0) {
-  //    objectConfiguration.noAuth.forEach(function (item) {
-  //      result = item.match(route);
-  //      if (result !== null && result[0] === route) {
-  //        requiredAuth = false;
-  //        return false;
-  //      }
-  //    });
-  //  }
-  //
-  //  return requiredAuth;
-  //}
 
   function isAuthenticatedMiddelware(req, res, next) {
     createRequestAuthObject(req);
@@ -114,14 +113,9 @@ module.exports = function (objectConf) {
           function (err) {
             if (err) return next(err);
 
-            var descryptedCookieData;
-            try {
-              descryptedCookieData = JSON.parse(objectConfiguration.decrypt(
-                req.cookies[objectConfiguration.cookieName],
-                objectConfiguration.algorithm,
-                objectConfiguration.password));
-            } catch (err) {
-              return next(err);
+            var descryptedCookieData = obtainCookieData(req.cookies[objectConfiguration.cookieName]);
+            if (descryptedCookieData instanceof Error) {
+              next(Error.toString());
             }
 
             req.diyAuth.authenticated = true;
@@ -139,8 +133,6 @@ module.exports = function (objectConf) {
         res.status(403);
         res.send();
       }
-
-
     } else {
       req.diyAuth.authenticated = true;
       req.diyAuth.hasPermission = true;
@@ -148,52 +140,31 @@ module.exports = function (objectConf) {
     }
   }
 
+  function getCookieDataFunction(req) {
+    var descryptedCookieData = obtainCookieData(req.cookies[objectConfiguration.cookieName]);
+    if (descryptedCookieData instanceof Error) {
+      return Error.toString();
+    }
+    return descryptedCookieData;
+  }
 
-  /* function isAuthenticatedMiddelwareOld(req, res, next) {
-   createRequestAuthObject(req);
-
-   if (!requireAuth(req.originalUrl)) {
-
-   req.diyAuth.authenticated = false;
-   req.diyAuth.hasPermission = false;
-
-   if (req.cookies && req.cookies[objectConfiguration.cookieName]) {
-
-   objectConfiguration.findDbSession(req.cookies[objectConfiguration.cookieName],
-   function (err) {
-   if (err) return next(err);
-
-   var descryptedCookieData;
-   try {
-   descryptedCookieData = JSON.parse(objectConfiguration.decrypt(
-   req.cookies[objectConfiguration.cookieName],
-   objectConfiguration.algorithm,
-   objectConfiguration.password));
-   } catch (err) {
-   return next(err);
-   }
-
-   req.diyAuth.authenticated = true;
-   req.diyAuth.hasPermission = !(objectConfiguration.userTypes.length > 0 && !hasAccess(descryptedCookieData[objectConfiguration.cookieRoleKeyName],
-   req.originalUrl));
-
-   });
-   }
-
-   if (!(req.diyAuth.authenticated && req.diyAuth.hasPermission)) {
-   res.status(403);
-   res.send();
-   }
-   } else {
-   req.diyAuth.authenticated = true;
-   req.diyAuth.hasPermission = true;
-   }
-   }*/
+  function obtainCookieData(cookieData) {
+    var descryptedCookieData;
+    try {
+      descryptedCookieData = JSON.parse(objectConfiguration.decrypt(
+        cookieData,
+        objectConfiguration.algorithm,
+        objectConfiguration.password));
+    } catch (err) {
+      return Error(err);
+    }
+    return descryptedCookieData;
+  }
 
   function isAuthenticatedFunction(req, route, done) {
     createRequestAuthObject(req);
 
-    if (!requireAuth(req.body.url)) {
+    if (requireAuth(req.body.url)) {
 
       if (req.cookies && req.cookies[objectConfiguration.cookieName]) {
 
@@ -201,14 +172,9 @@ module.exports = function (objectConf) {
           function (err) {
             if (err) return done(err, null);
 
-            var descryptedCookieData;
-            try {
-              descryptedCookieData = JSON.parse(objectConfiguration.decrypt(
-                req.cookies[objectConfiguration.cookieName],
-                objectConfiguration.algorithm,
-                objectConfiguration.password));
-            } catch (err) {
-              return done(err, null);
+            var descryptedCookieData = obtainCookieData(req.cookies[objectConfiguration.cookieName]);
+            if (descryptedCookieData instanceof Error) {
+              return done(Error.toString(), null);
             }
 
             req.diyAuth.authenticated = true;
@@ -227,17 +193,6 @@ module.exports = function (objectConf) {
     }
   }
 
-  function createRequestAuthObject(req) {
-    req.diyAuth = {
-      authenticated  : false,
-      hasPermission  : false,
-      isAuthenticated: isAuthenticated,
-      login          : objectConfiguration.login,
-      saveCookie     : objectConfiguration.saveCookie,
-      saveSessionToBd: objectConfiguration.saveSessionToBd,
-      logout         : logout
-    };
-  }
 
   function loggerFunction(req, res, user, pass, done) {
 
@@ -303,6 +258,7 @@ module.exports = function (objectConf) {
     saveCookie     : objectConfiguration.saveCookie,
     saveSessionToBd: objectConfiguration.saveSessionToBd,
     logger         : logger,
-    isAuthenticated: isAuthenticated
+    isAuthenticated: isAuthenticated,
+    getCookieData  : getCookieData
   };
 };
