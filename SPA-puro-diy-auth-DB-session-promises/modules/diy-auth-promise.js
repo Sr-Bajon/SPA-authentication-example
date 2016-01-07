@@ -1,6 +1,6 @@
 'use strict';
 
-var _ = require('lodash');
+var _       = require('lodash');
 var Promise = require('bluebird');
 
 module.exports = function (objectConf) {
@@ -45,10 +45,33 @@ module.exports = function (objectConf) {
   //                normalmente el nombre del usuario, el tipo de usuario,
   //                datos de personalización, etc.
 
+  function findUser(colection, user, pass) {
+    return new Promise(function (resolve, reject) {
+      colection.findOne({user: user}, function (err, doc) {
+        if (err) reject(503);
 
+        if (doc === null) reject(userNotFoundMessage);
 
+        if (doc.pass !== pass) reject(passwordIncorrectMessage);
 
+        resolve(doc);
+      });
+    });
+  }
 
+  function parseCookieData(doc) {
+    return new Promise(function (resolve, reject) {
+      resolve(JSON.stringify({
+        id  : doc.id.toString(),
+        role: doc.role
+      }));
+    });
+  }
 
+  function cookieData(colection, user, pass){
+    return new Promise(function(resolve, reject){
+      findUser(colection, user, pass).then(parseCookieData(doc));
+    });
+  }
 
 };

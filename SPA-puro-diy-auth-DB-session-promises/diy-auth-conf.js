@@ -85,10 +85,7 @@ module.exports = function (db) {
     });
 
     findUserPromise(user, pass).then();
-
   }
-
-
 
   function createCookieData(id, role) {
     return JSON.stringify({
@@ -112,13 +109,13 @@ module.exports = function (db) {
   function findUserPromise(colection, user, pass) {
     return new Promise(function (resolve, reject) {
       colection.findOne({user: user}, function (err, doc) {
-        if (err) return reject(503);
+        if (err) reject(503);
 
-        if (doc === null) return reject(userNotFoundMessage);
+        if (doc === null) reject(userNotFoundMessage);
 
-        if (doc.pass !== pass) return reject(passwordIncorrectMessage);
+        if (doc.pass !== pass) reject(passwordIncorrectMessage);
 
-        return resolve(doc);
+        resolve(doc);
       });
     });
   }
