@@ -60,7 +60,7 @@ module.exports = function (objectConf) {
   }
 
   function parseCookieData(doc) {
-    return new Promise(function (resolve, reject) {
+    return new Promise(function (resolve) {
       resolve(JSON.stringify({
         id  : doc.id.toString(),
         role: doc.role
@@ -68,10 +68,34 @@ module.exports = function (objectConf) {
     });
   }
 
-  function cookieData(colection, user, pass){
-    return new Promise(function(resolve, reject){
-      findUser(colection, user, pass).then(parseCookieData(doc));
+  function cookieData(colection, user, pass) {
+    return new Promise.resolve(
+      findUser(colection, user, pass).then(parseCookieData(doc))
+    );
+  }
+
+  // esta funcion creo que no hace falta que sea una promesa no?
+  function encryptCookieData(data) {
+    return Promise.resolve(objectConfiguration.encrypt(
+      data,
+      objectConfiguration.algorithm,
+      objectConfiguration.password));
+  }
+
+  function saveCookie(response, cookieName, cookieStoredData,
+                      expiredCookieTime) {
+    response.cookie(cookieName, cookieStoredData, {
+      expires: new Date(Date.now() + expiredCookieTime)
     });
   }
 
+  function saveSessionToDbFunction(cookieStoredData) {
+    return new Promise(function (resolve, reject) {
+      insert(sessionColeccion, cookieStoredData, function (err, success) {
+        if (err) reject(err);
+
+        return resolve(success);
+      });
+    });
+  }
 };
