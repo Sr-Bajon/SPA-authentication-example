@@ -58,7 +58,7 @@ module.exports = function (objectConf) {
   //    2.4.  el usuario y contraseña coinciden
   //        2.4.1.  Devuelve los datos que queramos tener en la sesion,
   //                normalmente el nombre del usuario, el tipo de usuario,
-  //                datos de personalización, etc.
+  //                datos de personalizaci�n, etc.
 
   function loginFunction(req, res, user, pass) {
     var sessionData;
@@ -91,6 +91,88 @@ module.exports = function (objectConf) {
       data.id,
       objectConfiguration.algorithm,
       objectConfiguration.password));
+  }
+
+  function logoutFunction(req, res) {
+    return new Promise(function (resolve, reject) {
+      if (req.cookies && req.cookies[objectConfiguration.cookieName]) {
+        var cookieData = req.cookies[objectConfiguration.cookieName];
+
+        res.clearCookie(objectConfiguration.cookieName);
+
+        objectConfiguration.clearSessionDb(cookieData, function (err) {
+          if (err) reject(err);
+
+          resolve(objectConfiguration.logoutMessage);
+        });
+      }
+    });
+  }
+
+  function startFunction() {
+    return function start(req, res, next) {
+      isAuthenticatedMiddelware(req, res, next);
+    };
+  }
+
+  function isAuthenticatedMiddelware(req, res, next) {
+    createRequestAuthObject(req);
+
+    var route = req.body.url || req.originalUrl;
+
+    if (requireAuth(route)) {
+
+      if (req.cookies && req.cookies[objectConfiguration.cookieName]) {
+        // la cookie existe, la desencripto para sacar el id
+        obtainCookieData(req.cookies[objectConfiguration.cookieName])
+          .then(objectConfiguration.findDbSession)
+          .then(function (doc) {
+            req.diyAuth.authenticated = true;
+            req.diyAuth.hasPermission = !(objectConfiguration.userTypes.length > 0 && !hasAccess(doc.role, route));
+
+            if (!(req.diyAuth.authenticated && req.diyAuth.hasPermission)) {
+              res.status(403);
+              res.send();
+            }
+
+            return next();
+          })
+          .catch(function (err) {
+            return next(err);
+          });
+
+      } else {
+        res.status(403);
+        res.send();
+      }
+    } else {
+      req.diyAuth.authenticated = true;
+      req.diyAuth.hasPermission = true;
+      return next();
+    }
+  }
+
+  function obtainCookieData(cookieData) {
+    return new Promise(function (resolve, reject) {
+      var descryptedCookieData;
+      try {
+        descryptedCookieData = JSON.parse(objectConfiguration.decrypt(
+          cookieData,
+          objectConfiguration.algorithm,
+          objectConfiguration.password));
+      } catch (err) {
+        reject(err);
+      }
+      resolve(descryptedCookieData);
+    });
+  }
+
+  function requireAuth(route, method) {
+    // TODO this function
+  }
+
+  function hasAccess(type, route) {
+    // TODO this function
   }
 
 };

@@ -114,4 +114,27 @@ module.exports = function (db) {
     });
   }
 
+  function clearSessionDbFunction(id) {
+    return new Promise(function (resolve, reject) {
+      sessionColeccion.deleteOne({_id: id}, function (err) {
+        if (err) reject(err);
+
+        resolve(true);
+      });
+    });
+  }
+
+  function findDbSessionFunction(id) {
+    // buscar el valor de la cookie en la base de datos
+    return new Promise(function (resolve, reject) {
+      sessionColeccion.findOne({_id: id}, function (err, doc) {
+        if (err) reject(err);
+
+        if (doc === null) return reject('No doc found');
+
+        return resolve(doc);
+      });
+    });
+  }
+
 };

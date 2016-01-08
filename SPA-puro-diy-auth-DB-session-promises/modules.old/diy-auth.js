@@ -223,7 +223,7 @@ module.exports = function (objectConf) {
     });
   }*/
 
-  function logoutFunction(req, res, done) {
+/*  function logoutFunction(req, res, done) {
     if (req.cookies && req.cookies[objectConfiguration.cookieName]) {
       var cookieData = req.cookies[objectConfiguration.cookieName];
 
@@ -235,7 +235,7 @@ module.exports = function (objectConf) {
         return done(null, objectConfiguration.logoutMessage);
       });
     }
-  }
+  }*/
 
   function hasAccess(type, route) {
     var authorized = true;

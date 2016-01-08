@@ -120,7 +120,7 @@ module.exports = function (db) {
     });
   }
 
-  function clearSessionDbFunction(id, done) {
+/*  function clearSessionDbFunction(id, done) {
     deleteOne(sessionColeccion, id, function (err, success) {
       if (err) done(err, null);
 
@@ -134,7 +134,7 @@ module.exports = function (db) {
 
       return done(null, true);
     });
-  }
+  }*/
 
   function saveSessionToDbFunction(cookieStoredData, done) {
     insert(sessionColeccion, cookieStoredData, function (err, success) {
@@ -159,7 +159,7 @@ module.exports = function (db) {
       });
   }
 
-  function findDbSessionFunction(id, done) {
+/*  function findDbSessionFunction(id, done) {
     findOneSessionDb(sessionColeccion, id, function (err, doc) {
       if (err) return done(err, null);
 
@@ -176,7 +176,7 @@ module.exports = function (db) {
 
       return done(null, doc);
     });
-  }
+  }*/
 
   return {
     login          : login,
