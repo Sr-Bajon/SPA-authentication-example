@@ -4,7 +4,7 @@ var Promise = require('bluebird');
 
 module.exports = function (db) {
 
-  var login           = loginFunction;
+  var sessionData     = sessionDataFunction;
   var clearSessionDb  = clearSessionDbFunction;
   var saveSessionToDb = saveSessionToDbFunction;
   var finDbdSession   = findDbSessionFunction;
@@ -13,7 +13,8 @@ module.exports = function (db) {
   var sessionColeccion         = db.collection('spaPure-session');
   var userNotFoundMessage      = 'User not found';
   var passwordIncorrectMessage = 'Password incorrect';
-  var userTypes                = [
+
+  var userTypes = [
     {
       type       : 'admin',
       hasNoAccess: []
@@ -23,19 +24,20 @@ module.exports = function (db) {
       hasNoAccess: ['/admin']
     }
   ];
-  var noAuth                   = [
+
+  var routes = [
     {
-      path  : '/',
-      method: ['GET', 'POST']
+      path        : ['/login'],
+      method      : ['GET', 'POST'],
+      accessByRole: ['administrador', 'usuario', 'emergencia'],
+      auth        : true
     },
     {
-      path  : '/favicon.ico',
-      method: []
-    },
-    {
-      path: '/login'
-    },
-    '/authenticate'];
+      path: ['/', '/favicon.ico', '/home', '/authenticate', '/loginUser',
+        '/buscaEmail', '/insertUser', '/authenticate'],
+      auth: false
+    }
+  ];
 
   /*
    Propuesta de mejora:
@@ -55,58 +57,18 @@ module.exports = function (db) {
    false, si una ruta no esta definida en routes se le niega acceso por defecto.
 
    */
-  var routes = [
-    {
-      path        : ['/login'],
-      method      : ['GET', 'POST'],
-      accessByRole: ['administrador', 'usuario', 'emergencia'],
-      auth        : true
-    },
-    {
-      path: ['/', '/favicon.ico', '/home', '/authenticate', '/loginUser',
-        '/buscaEmail', '/insertUser', '/authenticate'],
-      auth: false
-    }
-  ];
 
-  function loginFunction(user, pass, done) {
-    findUser(userColeccion, user, pass, function (err, doc) {
-      if (err) done(err, null);
+  // 1. login, el usuario se loguea
+  // 2. se busca en la base de datos el usuario y contraseña
+  //    2.1.  ocurre un error
+  //    2.2.  no encuentra el usuario
+  //    2.3.  la contraseña no coincide
+  //    2.4.  el usuario y contraseña coinciden
+  //        2.4.1.  Devuelve los datos que queramos tener en la sesion,
+  //                normalmente el nombre del usuario, el tipo de usuario,
+  //                datos de personalización, etc.
 
-      done(null, createCookieData(doc._id.toString(), doc.role));
-    });
-  }
-
-  function loginFunctionPromise(user, pass, done) {
-    findUser(userColeccion, user, pass, function (err, doc) {
-      if (err) done(err, null);
-
-      done(null, createCookieData(doc._id.toString(), doc.role));
-    });
-
-    findUserPromise(user, pass).then();
-  }
-
-  function createCookieData(id, role) {
-    return JSON.stringify({
-      id  : id,
-      role: role
-    });
-  }
-
-  function findUser(colection, user, pass, done) {
-    colection.findOne({user: user}, function (err, doc) {
-      if (err) return done(503, null);
-
-      if (doc === null) return done(userNotFoundMessage, null);
-
-      if (doc.pass !== pass) return done(passwordIncorrectMessage, null);
-
-      return done(null, doc);
-    });
-  }
-
-  function findUserPromise(colection, user, pass) {
+  function findUser(colection, user, pass) {
     return new Promise(function (resolve, reject) {
       colection.findOne({user: user}, function (err, doc) {
         if (err) reject(503);
@@ -120,70 +82,36 @@ module.exports = function (db) {
     });
   }
 
-  function clearSessionDbFunction(id, done) {
-    deleteOne(sessionColeccion, id, function (err, success) {
-      if (err) done(err, null);
+  function parseCookieData(doc) {
+    return Promise.resolve(JSON.stringify({
+      id  : doc.id.toString(),
+      role: doc.role,
+      date: Date.parse(new Date().toString())
+    }));
+  }
 
-      return done(null, success);
+
+  function sessionDataFunction(user, pass) {
+    return Promise.resolve(
+      findUser(userColeccion, user, pass)
+        .then(parseCookieData));
+  }
+
+  function saveSessionToDbFunction(sessionData) {
+    return new Promise(function (resolve, reject) {
+      sessionColeccion.insert({_id: sessionData.id},
+        function (err, doc) {
+
+          if (err && err.code === 11000) {
+            // this is a duplicated id error code
+            reject('Duplicated');
+          }
+
+          if (err) reject(err);
+
+          return resolve(doc);
+        });
     });
   }
 
-  function deleteOne(colection, id, done) {
-    colection.deleteOne({_id: id}, function (err) {
-      if (err) return done(err, null);
-
-      return done(null, true);
-    });
-  }
-
-  function saveSessionToDbFunction(cookieStoredData, done) {
-    insert(sessionColeccion, cookieStoredData, function (err, success) {
-      if (err) return done(err, null);
-
-      return done(null, success);
-    });
-  }
-
-  function insert(colection, cookieStoredData, done) {
-    colection.insert({_id: cookieStoredData},
-      function (err, doc) {
-
-        if (err && err.code === 11000) {
-          // this is a duplicated id error code
-          return done('Duplicated', null);
-        }
-
-        if (err) return done(err, null);
-
-        return done(null, doc);
-      });
-  }
-
-  function findDbSessionFunction(id, done) {
-    findOneSessionDb(sessionColeccion, id, function (err, doc) {
-      if (err) return done(err, null);
-
-      return done(null, doc._id.toString());
-    });
-  }
-
-  function findOneSessionDb(colection, id, done) {
-    // buscar el valor de la cookie en la base de datos
-    colection.findOne({_id: id}, function (err, doc) {
-      if (err) return done(err, null);
-
-      if (doc === null) return done('No doc found', null);
-
-      return done(null, doc);
-    });
-  }
-
-  return {
-    login          : login,
-    saveSessionToDb: saveSessionToDb,
-    finDbdSession  : finDbdSession,
-    clearSessionDb : clearSessionDb,
-    userTypes      : userTypes,
-    noAuth         : noAuth
-  };
 };

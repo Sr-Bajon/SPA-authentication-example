@@ -2,11 +2,11 @@
 
 
 module.exports = {
-  // la funcion sessionData debe buscar el usuario y contraseña en la base de datos y
+  // la funcion login debe buscar el usuario y contraseña en la base de datos y
   // devolver los datos que queramos que se guarden en la cookie, por ejemplo el
   // id y el role, si es un objeto devolverlo en forma JSON
-  sessionData: function loginFunction() {
-    throw 'diy-auth says: You must define a sessionData function';
+  loginFunction: function loginFunction() {
+    throw 'diy-auth says: You must define a login function';
   },
 
   // esta funcion recibe la id y un callback, y busca el id en la tabla o coleccion
