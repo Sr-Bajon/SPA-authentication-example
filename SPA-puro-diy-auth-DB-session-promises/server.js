@@ -69,7 +69,7 @@ MongoClient.connect(url, function (err, db) {
         app.post('/login', function (req, res) {
           var user = req.body.username;
           var pass = req.body.password;
-          diyAuthObj.logger(req, res, user, pass, function (err, success) {
+          diyAuthObj.login(req, res, user, pass, function (err, success) {
             if (err) {
               res.status('403');
               res.send(err);
