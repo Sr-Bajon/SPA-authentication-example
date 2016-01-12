@@ -41,19 +41,13 @@ module.exports = function (db) {
    Propuesta de mejora:
    requerido - path          : un array de rutas, pueden ser expresiones regulares también.
    opcional  - method        : un array de metodos, las rutas serán validadas por ruta y metodo
-   puede ser un array vacio en cuyo caso cualquier metodo pasa el test
-   puede no aparecer method en cuyo caso cualquier metodo pasa el test
+    puede ser un array vacio en cuyo caso cualquier metodo pasa el test
+    puede no aparecer method en cuyo caso cualquier metodo pasa el test
    opcional  - accessByRole  : un array con el nombre de los roles que tienen acceso a las rutas indicadas
-   puede ser un array vacio o no aparecer en cuyo caso si auth es true se autentica contra el usuario actual sea del tipo que sea
+    puede ser un array vacio o no aparecer en cuyo caso si auth es true se autentica contra el usuario actual sea del tipo que sea
    required  - auth          : boolean, indica si se debe autenticar o no la ruta
-   true, la ruta se autentica contra el metodo y el rol del usuario
-   false, la ruta no se autentica, es lo mismo que no poner o poner un array vacio en la clave accessByRole
-
-   en el objeto de configuracion otra opcion que sea:
-   opthimist:                : boolean
-   true por defecto, si una ruta no esta definida en routes se le da acceso por defecto.
-   false, si una ruta no esta definida en routes se le niega acceso por defecto.
-
+    true, la ruta se autentica contra el metodo y el rol del usuario
+    false, la ruta no se autentica, es lo mismo que no poner o poner un array vacio en la clave accessByRole
    */
   var routes = [
     {
